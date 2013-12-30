@@ -1,5 +1,5 @@
 module Data.Separated(
-  Separated(..)
+  Separated
 , (~>)
 , single
 , separatedValues1
