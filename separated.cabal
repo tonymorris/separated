@@ -27,6 +27,7 @@ library
   build-depends:
                     base < 5 && >= 3
                     , lens >= 3.10
+                    , semigroups >= 0.9
 
   ghc-options:
                     -Wall
