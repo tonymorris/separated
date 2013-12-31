@@ -20,6 +20,9 @@ import Data.Semigroup(Semigroup(..))
 -- >>> import Test.QuickCheck(Arbitrary(..))
 -- >>> instance (Arbitrary a, Arbitrary s) => Arbitrary (Separated s a) where arbitrary = do a <- arbitrary; x <- arbitrary; return (Separated a x)
 
+-- | A data type representing element values interspersed with a separator.
+--
+-- There is one fewer separator values (@s@) than there are element values (@a@). There is at least one element value.
 data Separated s a =
   Separated a [(s, a)]
   deriving (Eq, Ord)
