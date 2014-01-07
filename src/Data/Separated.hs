@@ -29,6 +29,7 @@ module Data.Separated(
 , separated1Head
 , separated1Tail
   -- * Alternating combinators
+, swap
 , separatedWith
 , separatedWith1
 ) where
