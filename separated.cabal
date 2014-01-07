@@ -9,7 +9,7 @@ synopsis:           A data type with elements separated by values
 category:           Data
 description:        A data type with elements separated by values
 homepage:           https://github.com/tonymorris/separated
-bug-reports:        https://github.com/tonymorris/route/separated
+bug-reports:        https://github.com/tonymorris/separated/separated
 cabal-version:      >= 1.10
 build-type:         Custom
 
