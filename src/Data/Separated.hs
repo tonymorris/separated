@@ -369,6 +369,19 @@ separated1Tail ::
 separated1Tail =
   lens (\(Separated1 _ x) -> Separated x) (\(Separated1 a _) (Separated x) -> Separated1 a x)
 
+-- | Swap the position of the elements and the separators.
+--
+-- >>> swap empty
+-- []
+--
+-- >>> swap (1 +: 'x' +: empty)
+-- ['x',1]
+swap ::
+  Separated s a
+  -> Separated a s
+swap (Separated x) =
+  Separated (fmap (\(s, a) -> (a, s)) x)
+
 -- | Effectful separation with failure represented by @Nothing@.
 --
 -- >>> separatedWith Nothing Nothing
