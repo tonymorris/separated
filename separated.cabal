@@ -1,5 +1,5 @@
 name:               separated
-version:            0.0.3
+version:            0.0.4
 license:            BSD3
 license-File:       etc/LICENCE
 author:             Tony Morris <ʇǝu˙sıɹɹoɯʇ@ןןǝʞsɐɥ>
@@ -28,6 +28,7 @@ library
                     base < 5 && >= 3
                     , lens >= 3.10
                     , semigroups >= 0.9
+                    , semigroupoids >= 4.0
 
   ghc-options:
                     -Wall

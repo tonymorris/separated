@@ -24,27 +24,30 @@ module Data.Separated(
 , separators1
   -- * Lenses and isomorphisms
 , separatedIso
+, separatedSwap
 , separated1Iso
 , shift
 , separated1Head
 , separated1Tail
   -- * Alternating combinators
-, swap
 , separatedWith
 , separatedWith1
 ) where
 
-import Prelude(Eq, Ord, Show(..), Functor(..), Monad(..), fst, snd, (.))
+import Prelude(Eq, Ord, Show(..), Functor(..), Monad(..), fst, snd, id, (.))
 import Data.List.NonEmpty(NonEmpty(..))
-import Data.List(intercalate)
+import Data.List(intercalate, zipWith, repeat)
 import Control.Lens(Lens', Iso', lens, iso, (#), (^.))
 import Data.Semigroup(Semigroup(..))
+import Data.Monoid(Monoid(..))
 import Data.Functor((<$>))
 import Data.Maybe(Maybe(..))
 import Control.Applicative(Applicative(..), Alternative(many, (<|>)))
+import Data.Functor.Apply(Apply(..))
 
 -- $setup
 -- >>> import Prelude(Eq(..), Num(..), String, Int, id)
+-- >>> import Data.List(reverse, drop)
 -- >>> import Control.Lens(set, (^.))
 -- >>> import Test.QuickCheck(Arbitrary(..))
 -- >>> instance (Arbitrary s, Arbitrary a) => Arbitrary (Separated s a) where arbitrary = fmap Separated arbitrary
@@ -71,6 +74,42 @@ instance Functor (Separated s) where
   fmap f (Separated x) =
     Separated (fmap (\(a, b) -> (a, f b)) x)
 
+-- not exported
+separatedAp ::
+  (s -> s -> s)
+  -> Separated s (a -> b)
+  -> Separated s a
+  -> Separated s b
+separatedAp op (Separated f) (Separated a) =
+    Separated (zipWith (\(s, f') (t, a') -> (s `op` t, f' a')) f a)
+
+-- | Applies functions with element values, using a zipping operation, appending
+-- separators.
+--
+-- >>> (empty :: Separated [Int] (String -> [String])) <.> empty
+-- []
+--
+-- >>> [1,2] +: (\s -> [s, reverse s, drop 1 s]) +: empty <.> [3,4,5] +: "abc" +: empty
+-- [[1,2,3,4,5],["abc","cba","bc"]]
+instance Semigroup s => Apply (Separated s) where
+  (<.>) =
+    separatedAp (<>)
+
+-- | Applies functions with element values, using a zipping operation, appending
+-- separators. The identity operation is an infinite list of the empty separator
+-- and the given element value.
+--
+-- >>> (empty :: Separated [Int] (String -> [String])) <*> empty
+-- []
+--
+-- >>> [1,2] +: (\s -> [s, reverse s, drop 1 s]) +: empty <*> [3,4,5] +: "abc" +: empty
+-- [[1,2,3,4,5],["abc","cba","bc"]]
+instance Monoid s => Applicative (Separated s) where
+  (<*>) =
+    separatedAp mappend
+  pure a =
+    Separated (repeat (mempty, a))
+
 -- | A data type representing element values interspersed with a separator.
 --
 -- There is one fewer separator values (@s@) than there are element values (@a@). There is at least one element value.
@@ -96,6 +135,36 @@ instance (Show a, Show s) => Show (Separated1 a s) where
 instance Functor (Separated1 a) where
   fmap f (Separated1 a x) =
     Separated1 a (fmap (\(s, y) -> (f s, y)) x)
+
+-- not exported
+separated1Ap ::
+  (a -> a -> a)
+  -> Separated1 a (s -> t)
+  -> Separated1 a s
+  -> Separated1 a t
+separated1Ap op (Separated1 a f) (Separated1 b s) =
+  Separated1 (a `op` b) (zipWith (\(f', s') (x, t') -> (f' x, s' `op` t')) f s)
+
+-- | Applies functions with separator values, using a zipping operation,
+-- appending elements.
+--
+-- >>> [1,2] +: reverse +: [3,4] +: empty <.> [5,6,7] +: "abc" +: [8] +: empty
+-- [[1,2,5,6,7],"cba",[3,4,8]]
+instance Semigroup a => Apply (Separated1 a) where
+  (<.>) =
+    separated1Ap (<>)
+
+-- | Applies functions with element values, using a zipping operation, appending
+-- elements. The identity operation is an infinite list of the empty element
+-- and the given separator value.
+--
+-- >>> [1,2] +: reverse +: [3,4] +: empty <*> [5,6,7] +: "abc" +: [8] +: empty
+-- [[1,2,5,6,7],"cba",[3,4,8]]
+instance Monoid s => Applicative (Separated1 s) where
+  (<*>) =
+    separated1Ap mappend
+  pure a =
+    Separated1 mempty (repeat (a, mempty))
 
 -- | Prepend a value to a separated-like structure.
 --
@@ -305,6 +374,25 @@ separatedIso ::
 separatedIso =
   iso Separated (\(Separated x) -> x)
 
+-- | The isomorphism that swaps elements with their separators.
+--
+-- >>> separatedSwap # empty
+-- []
+--
+-- >>> separatedSwap # ('x' +: 6 +: empty)
+-- [6,'x']
+--
+-- >>> empty ^. separatedSwap
+-- []
+--
+-- >>> ('x' +: 6 +: empty) ^. separatedSwap
+-- [6,'x']
+separatedSwap ::
+  Iso' (Separated s a) (Separated a s)
+separatedSwap =
+  let swap (a, b) = (b, a)
+  in iso (\(Separated x) -> Separated (fmap swap x)) (\(Separated x) -> Separated (fmap swap x))
+
 -- | The isomorphism to element values interspersed with a separator.
 --
 -- >>> separated1Iso # (single 6)
@@ -369,19 +457,6 @@ separated1Tail ::
   Lens' (Separated1 a s) (Separated s a)
 separated1Tail =
   lens (\(Separated1 _ x) -> Separated x) (\(Separated1 a _) (Separated x) -> Separated1 a x)
-
--- | Swap the position of the elements and the separators.
---
--- >>> swap empty
--- []
---
--- >>> swap (1 +: 'x' +: empty)
--- ['x',1]
-swap ::
-  Separated s a
-  -> Separated a s
-swap (Separated x) =
-  Separated (fmap (\(s, a) -> (a, s)) x)
 
 -- | Effectful separation with failure represented by @Nothing@.
 --
