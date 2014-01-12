@@ -1,5 +1,7 @@
 {-# LANGUAGE MultiParamTypeClasses #-}
-{-# LANGUAGE FunctionalDependencies #-}
+{-# LANGUAGE TypeFamilies #-}
+{-# LANGUAGE GADTs #-}
+{-# LANGUAGE StandaloneDeriving #-}
 
 module Data.Separated(
   -- * Data types
@@ -34,7 +36,7 @@ module Data.Separated(
 , separatedWith1
 ) where
 
-import Prelude(Eq, Ord, Show(..), Functor(..), Monad(..), fst, snd, id, (.))
+import Prelude(Eq, Ord, Show(..), Functor(..), Monad(..), Bool(..), fst, snd, const, id, not, (.))
 import Data.List.NonEmpty(NonEmpty(..))
 import Data.List(intercalate, zipWith, repeat)
 import Control.Lens(Lens', Iso', lens, iso, (#), (^.))
@@ -173,21 +175,27 @@ instance Monoid s => Applicative (Separated1 s) where
 --
 -- >>> 9 +: 'z' +: empty
 -- [9,'z']
-class SeparatedCons f g | f -> g, g -> f where
+class (f ~ SeparatedConsF g, g ~ SeparatedConsG f) => SeparatedCons f g where
+  type SeparatedConsF g :: * -> * -> *
+  type SeparatedConsG f :: * -> * -> *
   (+:) ::
     a
     -> f s a
     -> g a s
 
-infixr 5 +:
-
 instance SeparatedCons Separated Separated1 where
+  type SeparatedConsF Separated1 = Separated
+  type SeparatedConsG Separated = Separated1
   a +: Separated x =
     Separated1 a x
 
 instance SeparatedCons Separated1 Separated where
+  type SeparatedConsF Separated = Separated1
+  type SeparatedConsG Separated1 = Separated
   s +: Separated1 a x =
     Separated ((s, a) : x)
+
+infixr 5 +:
 
 -- | Append two lists of separated values to produce a list of pairs of separator and element values.
 --
@@ -233,10 +241,10 @@ infixr 5 *+:
 -- >>> single 7 **: empty
 -- [7]
 --
--- >> single 6 **: 'x' +: 7 +: empty
+-- >>> single 6 **: 'x' +: 7 +: empty
 -- [6,'x',7]
 --
--- >> 'w' +: single 6 **: 'x' +: 7 +: empty
+-- >>> 'w' +: single 6 **: 'x' +: 7 +: empty
 -- ['w',6,'x',7]
 (**:) ::
   Separated1 a s
@@ -511,3 +519,4 @@ separatedWith1 ::
   -> f (Separated1 a s)
 separatedWith1 a s =
   Separated1 <$> a <*> many ((,) <$> s <*> a)
+
