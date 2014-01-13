@@ -34,16 +34,44 @@ module Data.Separated(
   -- * Alternating combinators
 , separatedWith
 , separatedWith1
+  -- * Zipper
+, SepZipper
+, SepZipper'
+, Sep1Zipper
+, Sep1Zipper'
+  -- ** construction
+, zipper
+  -- ** running a potential zipper as if it were
+, Possible(..)
+  -- ** move focus
+, Move(..)
+, HasAdjacent(..)
+, FindAdjacent(..)
+  -- ** modify focus
+, withfocus
+, withfocus1
+, setfocus
+, (.=)
+, setfocus1
+, (.=.)
+  -- ** zipper components
+, focus
+, focus1
+, lefts
+, lefts1
+, rights
+, rights1
 ) where
 
 import Prelude(Eq, Ord, Show(..), Functor(..), Monad(..), Bool(..), fst, snd, const, id, not, (.))
 import Data.List.NonEmpty(NonEmpty(..))
-import Data.List(intercalate, zipWith, repeat)
+import Data.List(intercalate, zipWith, repeat, null)
 import Control.Lens(Lens', Iso', lens, iso, (#), (^.))
 import Data.Semigroup(Semigroup(..))
 import Data.Monoid(Monoid(..))
 import Data.Functor((<$>))
 import Data.Maybe(Maybe(..))
+import Data.Either(Either(..), either)
 import Control.Applicative(Applicative(..), Alternative(many, (<|>)))
 import Data.Functor.Apply(Apply(..))
 
@@ -519,4 +547,375 @@ separatedWith1 ::
   -> f (Separated1 a s)
 separatedWith1 a s =
   Separated1 <$> a <*> many ((,) <$> s <*> a)
+
+-- | Construct a zipper with the focus set to the first element value and
+-- subsequent elements and separators to the right.
+--
+-- >>> zipper (1 +: empty)
+-- [] >1< []
+--
+-- zipper (2 +: 'x' +: 1 +: empty)
+-- [] >2< ['x',1]
+zipper ::
+  Separated1 a s
+  -> SepZipper Z s a
+zipper (Separated1 a x) =
+  SepZ [] a x
+
+data Z
+data MaybeZ
+
+data SepZipper z s a where
+  SepZ ::
+    [(s, a)]
+    -> a
+    -> [(s, a)]
+    -> SepZipper Z s a
+  SepMaybeZ ::
+    Maybe (SepZipper Z s a)
+    -> SepZipper MaybeZ s a
+deriving instance (Eq s, Eq a) => Eq (SepZipper z s a)
+deriving instance (Ord s, Ord a) => Ord (SepZipper z s a)
+
+type SepZipper' z x =
+  SepZipper z x x
+
+instance (Show s, Show a) => Show (SepZipper z s a) where
+  show (SepZ l x r) =
+    let sh q = '[' : intercalate "," (fmap (\(s, a) -> show s <> "," <> show a) q) <> "]"
+    in sh l <> " >" <> show x <> "< " <> sh r
+  show (SepMaybeZ Nothing) =
+    "><"
+  show (SepMaybeZ (Just z)) =
+    show z
+
+-- | Map on element values.
+--
+-- >>> fmap (+3) (zipper (2 +: 'x' +: 1 +: empty))
+-- [] >5< ['x',4]
+--
+-- >>> fmap (+3) (moveleft (zipper (2 +: 'x' +: 1 +: empty)))
+-- ><
+instance Functor (SepZipper z s) where
+  fmap f (SepZ l x r) =
+    SepZ (fmap (\(a, b) -> (a, f b)) l) (f x) (fmap (\(a, b) -> (a, f b)) r)
+  fmap f (SepMaybeZ z) =
+    SepMaybeZ (fmap (fmap f) z)
+
+data Sep1Zipper z s a where
+  Sep1Z ::
+    [(s, a)]
+    -> a
+    -> s
+    -> a
+    -> [(s, a)]
+    -> Sep1Zipper Z s a
+  Sep1MaybeZ ::
+    Maybe (Sep1Zipper Z s a)
+    -> Sep1Zipper MaybeZ s a
+deriving instance (Eq s, Eq a) => Eq (Sep1Zipper z s a)
+deriving instance (Ord s, Ord a) => Ord (Sep1Zipper z s a)
+
+type Sep1Zipper' z x =
+  Sep1Zipper z x x
+
+instance (Show s, Show a) => Show (Sep1Zipper z s a) where
+  show (Sep1Z l lx x rx r) =
+    let sh pre q = '[' : intercalate "," (pre (fmap (\(s, a) -> show s <> "," <> show a) q)) <> "]"
+    in sh (show lx :) l <> " >" <> show x <> "< " <> sh (show rx :) r
+  show (Sep1MaybeZ Nothing) =
+    "><"
+  show (Sep1MaybeZ (Just z)) =
+    show z
+
+-- | Map on element values.
+--
+-- >>> fmap (+3) (moveright (zipper (2 +: 'x' +: 1 +: empty)))
+-- [5] >'x'< [4]
+instance Functor (Sep1Zipper z s) where
+  fmap f (Sep1Z l la x ra r) =
+    Sep1Z (fmap (\(a, b) -> (a, f b)) l) (f la) x (f ra) (fmap (\(a, b) -> (a, f b)) r)
+  fmap f (Sep1MaybeZ z) =
+    Sep1MaybeZ (fmap (fmap f) z)
+
+class Possible z where
+  (?.) ::
+    (z Z s a -> x)
+    -> z MaybeZ s a
+    -> Maybe x
+  (.?.) ::
+    (z Z s a -> z Z s a)
+    -> z MaybeZ s a
+    -> z MaybeZ s a
+
+instance Possible SepZipper where
+  f ?. SepMaybeZ z =
+    fmap f z
+  f .?. z =
+    SepMaybeZ (f ?. z)
+
+instance Possible Sep1Zipper where
+  f ?. Sep1MaybeZ z =
+    fmap f z
+  f .?. z =
+    Sep1MaybeZ (f ?. z)
+
+class (f ~ MoveF g, g ~ MoveG f) => Move f g where
+  type MoveF g :: * -> * -> * -> *
+  type MoveG f :: * -> * -> * -> *
+  moveright ::
+    f z s a
+    -> g MaybeZ s a
+  moveleft ::
+    f z s a
+    -> g MaybeZ s a
+
+instance Move SepZipper Sep1Zipper where
+  type MoveF Sep1Zipper = SepZipper
+  type MoveG SepZipper = Sep1Zipper
+  moveright (SepZ _ _ []) =
+    Sep1MaybeZ Nothing
+  moveright (SepZ l x ((s,a):t)) =
+    Sep1MaybeZ (Just (Sep1Z l x s a t))
+  moveright (SepMaybeZ Nothing) =
+    Sep1MaybeZ Nothing
+  moveright (SepMaybeZ (Just z)) =
+    moveright z
+  moveleft (SepZ [] _ _) =
+    Sep1MaybeZ Nothing
+  moveleft (SepZ ((s,a):l) x r) =
+    Sep1MaybeZ (Just (Sep1Z l a s x r))
+  moveleft (SepMaybeZ Nothing) =
+    Sep1MaybeZ Nothing
+  moveleft (SepMaybeZ (Just z)) =
+    moveleft z
+
+instance Move Sep1Zipper SepZipper where
+  type MoveF SepZipper = Sep1Zipper
+  type MoveG Sep1Zipper = SepZipper
+  moveright (Sep1Z l la x ra r) =
+    SepMaybeZ (Just (SepZ ((x,la):l) ra r))
+  moveright (Sep1MaybeZ Nothing) =
+    SepMaybeZ Nothing
+  moveright (Sep1MaybeZ (Just z)) =
+    moveright z
+  moveleft (Sep1Z l la x ra r) =
+    SepMaybeZ (Just (SepZ l la ((x,ra):r)))
+  moveleft (Sep1MaybeZ Nothing) =
+    SepMaybeZ Nothing
+  moveleft (Sep1MaybeZ (Just z)) =
+    moveleft z
+
+-- | Modify the current focus with the given operation.
+--
+-- >>> withfocus (+10) (zipper (2 +: 'x' +: 1 +: empty))
+-- [] >12< ['x',1]
+withfocus ::
+  (a -> a)
+  -> SepZipper z s a
+  -> SepZipper z s a
+withfocus k (SepZ l a r) =
+  SepZ l (k a) r
+withfocus k (SepMaybeZ z) =
+  SepMaybeZ (fmap (withfocus k) z)
+
+-- | Modify the current focus with the given operation.
+--
+-- >>> withfocus1 (+10) (moveright (zipper ('w' +: 1 +: 'x' +: empty)))
+-- ['w'] >11< ['x']
+withfocus1 ::
+  (s -> s)
+  -> Sep1Zipper z s a
+  -> Sep1Zipper z s a
+withfocus1 k (Sep1Z l la s ra r) =
+  Sep1Z l la (k s) ra r
+withfocus1 k (Sep1MaybeZ z) =
+  Sep1MaybeZ (fmap (withfocus1 k) z)
+
+-- | Modify the current focus to the given value.
+--
+-- >>> setfocus 13 (zipper (2 +: 'x' +: 1 +: empty))
+-- [] >13< ['x',1]
+setfocus ::
+  a
+  -> SepZipper z s a
+  -> SepZipper z s a
+setfocus =
+  withfocus . const
+
+-- | Modify the current focus to the given value.
+--
+-- >>> zipper (2 +: 'x' +: 1 +: empty) .= 13
+-- [] >13< ['x',1]
+(.=) ::
+  SepZipper z s a
+  -> a
+  -> SepZipper z s a
+z .= a =
+  setfocus a z
+
+-- | Modify the current focus to the given value.
+--
+-- >>> setfocus1 3 (moveright (zipper ('w' +: 1 +: 'x' +: empty)))
+-- ['w'] >3< ['x']
+setfocus1 ::
+  s
+  -> Sep1Zipper z s a
+  -> Sep1Zipper z s a
+setfocus1 =
+  withfocus1 . const
+
+-- | Modify the current focus to the given value.
+--
+-- >>> moveright (zipper ('w' +: 1 +: 'x' +: empty)) .=. 3
+-- ['w'] >3< ['x']
+(.=.) ::
+  Sep1Zipper z s a
+  -> s
+  -> Sep1Zipper z s a
+z .=. a =
+  setfocus1 a z
+
+-- | A lens on a zipper focus.
+--
+-- >>> set focus 14 (zipper (1 +: empty))
+-- [] >14< []
+--
+-- >>> zipper (1 +: empty) ^. focus
+-- 1
+--
+-- prop> zipper (x +: empty) ^. focus == x
+focus ::
+  Lens' (SepZipper Z s a) a
+focus =
+  lens (\(SepZ _ x _) -> x) (\(SepZ l _ r) x -> SepZ l x r)
+
+-- | A lens on a zipper focus.
+focus1 ::
+  Lens' (Sep1Zipper Z s a) s
+focus1 =
+  lens (\(Sep1Z _ _ x _ _) -> x) (\(Sep1Z l la _ ra r) x -> Sep1Z l la x ra r)
+
+lefts ::
+  Lens' (SepZipper Z s a) (Separated s a)
+lefts =
+  lens (\(SepZ l _ _) -> Separated l) (\(SepZ _ x r) (Separated l) -> SepZ l x r)
+
+lefts1 ::
+  Lens' (Sep1Zipper Z s a) (Separated1 a s)
+lefts1 =
+  lens (\(Sep1Z l la _ _ _) -> Separated1 la l) (\(Sep1Z _ _ x ra r) (Separated1 la l) -> Sep1Z l la x ra r)
+
+rights ::
+  Lens' (SepZipper Z s a) (Separated s a)
+rights =
+  lens (\(SepZ _ _ r) -> Separated r) (\(SepZ l x _) (Separated r) -> SepZ l x r)
+
+rights1 ::
+  Lens' (Sep1Zipper Z s a) (Separated1 a s)
+rights1 =
+  lens (\(Sep1Z _ _ _ ra r) -> Separated1 ra r) (\(Sep1Z l la x _ _) (Separated1 ra r) -> Sep1Z l la x ra r)
+
+class HasAdjacent z p where
+  type HasAdjacentZ z :: * -> * -> * -> *
+  type HasAdjacentP p :: *
+  hasleft ::
+    z p s a
+    -> Bool
+  hasright ::
+    z p s a
+    -> Bool
+
+instance HasAdjacent SepZipper Z where
+  type HasAdjacentZ SepZipper = SepZipper
+  type HasAdjacentP Z = Z
+  hasleft (SepZ l _ _) =
+    not (null l)
+  hasright (SepZ _ _ r) =
+    not (null r)
+
+instance HasAdjacent Sep1Zipper Z where
+  type HasAdjacentZ Sep1Zipper = Sep1Zipper
+  type HasAdjacentP Z = Z
+  hasleft _ =
+    True
+  hasright _ =
+    True
+
+instance HasAdjacent SepZipper MaybeZ where
+  type HasAdjacentZ SepZipper = SepZipper
+  type HasAdjacentP MaybeZ = MaybeZ
+  hasleft (SepMaybeZ (Just z)) =
+    hasleft z
+  hasleft (SepMaybeZ Nothing) =
+    False
+  hasright (SepMaybeZ (Just z)) =
+    hasright z
+  hasright (SepMaybeZ Nothing) =
+    False
+
+instance HasAdjacent Sep1Zipper MaybeZ where
+  type HasAdjacentZ Sep1Zipper = Sep1Zipper
+  type HasAdjacentP MaybeZ = MaybeZ
+  hasleft (Sep1MaybeZ (Just _)) =
+    True
+  hasleft (Sep1MaybeZ Nothing) =
+    False
+  hasright (Sep1MaybeZ (Just _)) =
+    True
+  hasright (Sep1MaybeZ Nothing) =
+    False
+
+class (f ~ FindAdjacentF g, g ~ FindAdjacentG f) => FindAdjacent f g p where
+  type FindAdjacentF g :: * -> * -> * -> *
+  type FindAdjacentG f :: * -> * -> * -> *
+  type FindAdjacentP p :: *
+  findleft ::
+    (Either a s -> Bool)
+    -> f p s a
+    -> Maybe (Either (f p s a) (g p s a))
+  findright ::
+    (Either a s -> Bool)
+    -> f p s a
+    -> Maybe (Either (f p s a) (g p s a))
+
+instance FindAdjacent SepZipper Sep1Zipper Z where
+  type FindAdjacentF Sep1Zipper = SepZipper
+  type FindAdjacentG SepZipper = Sep1Zipper
+  type FindAdjacentP Z = Z
+  findleft p z =
+    let Sep1MaybeZ r = moveleft z
+    in r >>= \r' ->
+         if p (Right (r' ^. focus1))
+           then Just (Right r')
+           else fmap (either Right Left) (findleft p r')
+  findright p z =
+    let Sep1MaybeZ r = moveright z
+    in r >>= \r' ->
+         if p (Right (r' ^. focus1))
+           then Just (Right r')
+           else fmap (either Right Left) (findright p r')
+
+instance FindAdjacent Sep1Zipper SepZipper Z where
+  type FindAdjacentF SepZipper = Sep1Zipper
+  type FindAdjacentG Sep1Zipper = SepZipper
+  type FindAdjacentP Z = Z
+  findleft p z =
+    let SepMaybeZ r = moveleft z
+    in r >>= \r' ->
+         if p (Left (r' ^. focus))
+           then Just (Right r')
+           else fmap (either Right Left) (findleft p r')
+  findright p z =
+    let SepMaybeZ r = moveright z
+    in r >>= \r' ->
+         if p (Left (r' ^. focus))
+           then Just (Right r')
+           else fmap (either Right Left) (findright p r')
+{-
+todo
+
+* tests
+
+ -}
 
