@@ -17,6 +17,7 @@ module Data.Separated(
   -- * Constructing data types
 , empty
 , single
+, (+:.)
   -- * Extracting values from data types
 , allValues
 , allValues1
@@ -279,6 +280,22 @@ single ::
   -> Separated1 s a
 single a =
   Separated1 a []
+
+-- | One element and one separator.
+--
+-- >>> 7 +:. "abc"
+-- [7,"abc"]
+--
+-- >>> 7 +: "abc" +: 8 +:. "def"
+-- [7,"abc",8,"def"]
+(+:.) ::
+  a
+  -> s
+  -> Separated a s
+(+:.) a s =
+  a +: single s
+
+infixr 5 +:.
 
 -- | Return all element values in a list of pairs of element and separator values.
 --
