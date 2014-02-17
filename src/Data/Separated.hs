@@ -269,15 +269,15 @@ empty ::
 empty =
   Separated []
 
--- | Zero element values interspersed with one separator.
+-- | Zero element values interspersed with one element.
 --
 -- >>> single 4
 -- [4]
 --
 -- prop> single x ^. separated1Tail == empty
 single ::
-  s
-  -> Separated1 s a
+  a
+  -> Separated1 a s
 single a =
   Separated1 a []
 
