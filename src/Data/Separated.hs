@@ -163,7 +163,7 @@ instance Semigroup a => Apply (Separated1 a) where
 --
 -- >>> [1,2] +: reverse +: [3,4] +: empty <*> [5,6,7] +: "abc" +: [8] +: empty
 -- [[1,2,5,6,7],"cba",[3,4,8]]
-instance Monoid s => Applicative (Separated1 a) where
+instance Monoid a => Applicative (Separated1 a) where
   (<*>) =
     separated1Ap mappend
   pure a =
