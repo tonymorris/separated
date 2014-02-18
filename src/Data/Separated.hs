@@ -537,3 +537,26 @@ separatedWith1 ::
 separatedWith1 a s =
   Separated1 <$> a <*> many ((,) <$> s <*> a)
 
+data Separateds1 a s =
+  Separateds1 [Separated s a] (Separated1 a s)
+
+new ::
+  Separateds1 a s
+  -> Separateds1 a s
+new (Separateds1 a z) =
+  Separateds1 (empty : a) z
+
+data Separateds s a =
+  Separateds s [Separated s a] (Separated1 a s)
+
+instance SeparatedCons Separateds Separateds1 where
+  type SeparatedConsF Separateds1 = Separateds
+  type SeparatedConsG Separateds = Separateds1
+  s +: Separateds a q x =
+    Separateds1 ((a +:. s) : q) x
+
+instance SeparatedCons Separateds1 Separateds where
+  type SeparatedConsF Separateds = Separateds1
+  type SeparatedConsG Separateds1 = Separateds
+  s +: Separateds1 q x =
+    Separateds s q x
