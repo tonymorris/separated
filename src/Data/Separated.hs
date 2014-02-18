@@ -26,6 +26,10 @@ module Data.Separated(
 , separators
 , separators1
   -- * Lenses and isomorphisms
+, HasSeparated(..)
+, HasFSeparated(..)
+, HasSeparated1(..)
+, HasFSeparated1(..)
 , separatedIso
 , separatedSwap
 , separated1Iso
@@ -60,6 +64,20 @@ import Data.Functor.Apply(Apply(..))
 newtype Separated s a =
   Separated [(s, a)]
   deriving (Eq, Ord)
+
+-- | Structures that view a @Separated@ through a lens.
+class HasSeparated f where
+  separatedL ::
+    Lens' (f s a) (Separated s a)
+
+-- | Structures that view a flipped @Separated@ through a lens.
+class HasFSeparated f where
+  fseparatedL ::
+    Lens' (f s a) (Separated a s)
+
+instance HasSeparated Separated where
+  separatedL =
+    id
 
 type Separated' x =
   Separated x x
@@ -119,6 +137,20 @@ instance Monoid s => Applicative (Separated s) where
 data Separated1 a s =
   Separated1 a [(s, a)]
   deriving (Eq, Ord)
+
+-- | Structures that view a @Separated1@ through a lens.
+class HasSeparated1 f where
+  separated1L ::
+    Lens' (f a s) (Separated1 a s)
+
+-- | Structures that view a flipped @Separated1@ through a lens.
+class HasFSeparated1 f where
+  fseparated1L ::
+    Lens' (f a s) (Separated1 s a)
+
+instance HasSeparated1 Separated1 where
+  separated1L =
+    id
 
 type Separated1' x =
   Separated1 x x
@@ -539,15 +571,46 @@ separatedWith1 a s =
 
 data Separateds1 a s =
   Separateds1 [Separated s a] (Separated1 a s)
+  deriving (Eq, Ord, Show)
 
-new ::
+instance HasSeparated1 Separateds1 where
+  separated1L =
+    lens (\(Separateds1 _ x) -> x) (\(Separateds1 q _) x -> Separateds1 q x)
+
+class HasManySeparated f where
+  manyseparatedL ::
+    Lens' (f a s) [Separated s a]
+
+instance HasManySeparated Separateds1 where
+  manyseparatedL =
+    lens (\(Separateds1 q _) -> q) (\(Separateds1 _ x) q -> Separateds1 q x)
+
+delineate ::
   Separateds1 a s
   -> Separateds1 a s
-new (Separateds1 a z) =
+delineate (Separateds1 a z) =
   Separateds1 (empty : a) z
 
 data Separateds s a =
   Separateds s [Separated s a] (Separated1 a s)
+  deriving (Eq, Ord, Show)
+
+instance HasFSeparated1 Separateds where
+  fseparated1L =
+    lens (\(Separateds _ _ x) -> x) (\(Separateds a q _) x -> Separateds a q x)
+
+class HasFManySeparated f where
+  fmanySeparatedL ::
+    Lens' (f s a) [Separated s a]
+
+instance HasFManySeparated Separateds where
+  fmanySeparatedL =
+    lens (\(Separateds _ q _) -> q) (\(Separateds a _ x) q -> Separateds a q x)
+
+firstSeparator ::
+  Lens' (Separateds s a) s
+firstSeparator =
+  lens (\(Separateds a _ _) -> a) (\(Separateds _ q x) a -> Separateds a q x)
 
 instance SeparatedCons Separateds Separateds1 where
   type SeparatedConsF Separateds1 = Separateds
