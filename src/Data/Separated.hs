@@ -9,8 +9,13 @@ module Data.Separated(
 , Separated'
 , Separated1
 , Separated1'
+, FlipSeparated
+, FlipSeparated'
+, FlipSeparated1
+, FlipSeparated1'
   -- * Inserting elements
 , SeparatedCons(..)
+, FlipSeparatedCons(..)
 , (++:)
 , (*+:)
 , (**:)
@@ -18,6 +23,7 @@ module Data.Separated(
 , empty
 , single
 , (+:.)
+, fempty
   -- * Extracting values from data types
 , allValues
 , allValues1
@@ -32,6 +38,9 @@ module Data.Separated(
 , shift
 , separated1Head
 , separated1Tail
+, flipSeparatedIso
+, flipSeparatedSwapIso
+, flipSeparated1Iso
   -- * Alternating combinators
 , separatedWith
 , separatedWith1
@@ -40,7 +49,7 @@ module Data.Separated(
 import Prelude(Eq, Ord, Show(..), Functor(..), Monad(..), Bool(..), fst, snd, const, id, not, (.))
 import Data.List.NonEmpty(NonEmpty(..))
 import Data.List(intercalate, zipWith, repeat)
-import Control.Lens(Lens', Iso', lens, iso, (#), (^.))
+import Control.Lens(Lens', Iso', lens, iso, from, (#), (^.))
 import Data.Semigroup(Semigroup(..))
 import Data.Monoid(Monoid(..))
 import Data.Functor((<$>))
@@ -50,11 +59,14 @@ import Data.Functor.Apply(Apply(..))
 
 -- $setup
 -- >>> import Prelude(Eq(..), Num(..), String, Int, id)
+-- >>> import Data.Char(toUpper)
 -- >>> import Data.List(reverse, drop)
 -- >>> import Control.Lens(set, (^.))
 -- >>> import Test.QuickCheck(Arbitrary(..))
 -- >>> instance (Arbitrary s, Arbitrary a) => Arbitrary (Separated s a) where arbitrary = fmap Separated arbitrary
 -- >>> instance (Arbitrary a, Arbitrary s) => Arbitrary (Separated1 s a) where arbitrary = do a <- arbitrary; x <- arbitrary; return (Separated1 a x)
+-- >>> instance (Arbitrary s, Arbitrary a) => Arbitrary (FlipSeparated a s) where arbitrary = fmap FlipSeparated arbitrary
+-- >>> instance (Arbitrary a, Arbitrary s) => Arbitrary (FlipSeparated1 s a) where arbitrary = do a <- arbitrary; x <- arbitrary; return (FlipSeparated1 a x)
 
 -- | A data type representing a list of pairs of separator and element values.
 newtype Separated s a =
@@ -157,9 +169,9 @@ instance Semigroup a => Apply (Separated1 a) where
   (<.>) =
     separated1Ap (<>)
 
--- | Applies functions with element values, using a zipping operation, appending
--- elements. The identity operation is an infinite list of the empty element
--- and the given separator value.
+-- | Applies functions with separator values, using a zipping operation,
+-- appending elements. The identity operation is an infinite list of the empty
+-- element and the given separator value.
 --
 -- >>> [1,2] +: reverse +: [3,4] +: empty <*> [5,6,7] +: "abc" +: [8] +: empty
 -- [[1,2,5,6,7],"cba",[3,4,8]]
@@ -537,3 +549,198 @@ separatedWith1 ::
 separatedWith1 a s =
   Separated1 <$> a <*> many ((,) <$> s <*> a)
 
+-- | A data type representing a list of pairs of separator and element values.
+-- Isomorphic to @Separated@ with the type constructor flipped.
+newtype FlipSeparated a s =
+  FlipSeparated [(s, a)]
+  deriving (Eq, Ord)
+
+type FlipSeparated' x =
+  FlipSeparated x x
+
+fempty ::
+  FlipSeparated a s
+fempty =
+  FlipSeparated []
+
+-- | The isomorphism to a @Separator@.
+--
+-- >>> flipSeparatedIso # empty
+-- []
+--
+-- >>> flipSeparatedIso # ('x' +: 6 +: empty)
+-- ['x',6]
+--
+-- >>> [] ^. separatedIso . from flipSeparatedIso
+-- []
+--
+-- [(6, [])] ^. separatedIso . from flipSeparatedIso
+-- [6,[]]
+flipSeparatedIso ::
+  Iso' (FlipSeparated a s) (Separated s a)
+flipSeparatedIso =
+  iso (\(FlipSeparated x) -> Separated x) (\(Separated x) -> FlipSeparated x)
+
+-- | The isomorphism to a @Separator@ with elements and separators swapped.
+-- >>> flipSeparatedSwapIso # empty
+-- []
+--
+-- >>> flipSeparatedSwapIso # ('x' +: 6 +: empty)
+-- [6,'x']
+--
+-- >>> [] ^. separatedIso . from flipSeparatedSwapIso
+-- []
+--
+-- [(6, [])] ^. separatedIso . from flipSeparatedSwapIso
+-- [6,[]]
+flipSeparatedSwapIso ::
+    Iso' (FlipSeparated a s) (Separated a s)
+flipSeparatedSwapIso =
+  flipSeparatedIso . separatedSwap
+
+instance (Show a, Show s) => Show (FlipSeparated a s) where
+  show x =
+    show (x ^. flipSeparatedIso)
+
+-- | Map across a @FlipSeparated@ on the separator values.
+--
+-- prop> fmap id (x :: FlipSeparated Int String) == x
+--
+-- prop> fmap (+1) (a +. b +. fempty) == (1+a) +. b +. fempty
+instance Functor (FlipSeparated a) where
+  fmap f x =
+    fmap f (x ^. flipSeparatedSwapIso) ^. from flipSeparatedSwapIso
+
+-- not exported
+flipSeparatedAp ::
+  (a -> a -> a)
+  -> FlipSeparated a (s -> t)
+  -> FlipSeparated a s
+  -> FlipSeparated a t
+flipSeparatedAp op f a =
+    let f' = f ^. flipSeparatedSwapIso
+        a' = a ^. flipSeparatedSwapIso
+    in separatedAp op f' a' ^. from flipSeparatedSwapIso
+
+-- | Applies functions with separator values, using a zipping operation,
+-- appending elements.
+--
+-- >>> (fempty :: FlipSeparated [Int] (String -> [String])) <.> fempty
+-- []
+--
+-- >>> (\s -> [s, reverse s, drop 1 s]) +. [1,2] +. fempty <.> "abc" +. [3,4,5] +. fempty
+-- [["abc","cba","bc"],[1,2,3,4,5]]
+instance Semigroup a => Apply (FlipSeparated a) where
+  (<.>) =
+    flipSeparatedAp (<>)
+
+-- | Applies functions with separator values, using a zipping operation, appending
+-- elements. The identity operation is an infinite list of the empty element
+-- and the given separator value.
+--
+-- >>> (fempty :: FlipSeparated [Int] (String -> [String])) <*> fempty
+-- []
+--
+-- >>> (\s -> [s, reverse s, drop 1 s]) +. [1,2] +. fempty <*> "abc" +. [3,4,5] +. fempty
+-- [["abc","cba","bc"],[1,2,3,4,5]]
+instance Monoid a => Applicative (FlipSeparated a) where
+  (<*>) =
+    flipSeparatedAp mappend
+  pure s =
+    FlipSeparated (repeat (s, mempty))
+
+-- | A data type representing element values interspersed with a separator.
+-- Isomorphic to @Separated1@ with the type constructor flipped.
+--
+-- There is one fewer separator values (@s@) than there are element values (@a@). There is at least one element value.
+data FlipSeparated1 s a =
+  FlipSeparated1 a [(s, a)]
+  deriving (Eq, Ord)
+
+type FlipSeparated1' x =
+  FlipSeparated1 x x
+
+-- | The isomorphism to a @Separated1@.
+--
+-- >>> flipSeparated1Iso # (single 6)
+-- [6]
+--
+-- >>> flipSeparated1Iso # (5 +: 'x' +: single 6)
+-- [5,'x',6]
+--
+-- >>> (6 +: empty) ^. from flipSeparated1Iso
+-- [6]
+--
+-- >>> (5 +: 'x' +: 6 +: empty) ^. from flipSeparated1Iso
+-- [5,'x',6]
+flipSeparated1Iso ::
+  Iso' (FlipSeparated1 s a) (Separated1 a s)
+flipSeparated1Iso =
+  iso (\(FlipSeparated1 s x) -> Separated1 s x) (\(Separated1 s x) -> FlipSeparated1 s x)
+
+instance (Show s, Show a) => Show (FlipSeparated1 s a) where
+  show x =
+    show (x ^. flipSeparated1Iso)
+
+instance Functor (FlipSeparated1 s) where
+  fmap f (FlipSeparated1 a x) =
+    FlipSeparated1 (f a) (fmap (\(s, y) -> (s, f y)) x)
+
+-- not exported
+flipSeparated1Ap ::
+  (s -> s -> s)
+  -> FlipSeparated1 s (a -> b)
+  -> FlipSeparated1 s a
+  -> FlipSeparated1 s b
+flipSeparated1Ap op (FlipSeparated1 f s) (FlipSeparated1 a t) =
+  FlipSeparated1 (f a) (zipWith (\(s', f') (t', x) -> (s' `op` t', f' x)) s t)
+
+-- | Applies functions with element values, using a zipping operation,
+-- appending separators.
+--
+-- >>> fmap toUpper +. [3,4] +. reverse +. fempty <.> "abc" +. [5,6,7] +. "def" +. fempty
+-- ["ABC",[3,4,5,6,7],"fed"]
+instance Semigroup s => Apply (FlipSeparated1 s) where
+  (<.>) =
+    flipSeparated1Ap (<>)
+
+-- | Applies functions with element values, using a zipping operation,
+-- appending separators. The identity operation is an infinite list of the empty
+-- separator and the given element value.
+--
+-- >>> fmap toUpper +. [3,4] +. reverse +. fempty <*> "abc" +. [5,6,7] +. "def" +. fempty
+-- ["ABC",[3,4,5,6,7],"fed"]
+instance Monoid s => Applicative (FlipSeparated1 s) where
+  (<*>) =
+    flipSeparated1Ap mappend
+  pure s =
+    FlipSeparated1 s (repeat (mempty, s))
+
+-- | Prepend a value to a flipped separated-like structure.
+--
+-- >>> 'z' +. fempty
+-- ['z']
+--
+-- >>> 9 +. 'z' +. fempty
+-- [9,'z']
+class (f ~ FlipSeparatedConsF g, g ~ FlipSeparatedConsG f) => FlipSeparatedCons f g where
+  type FlipSeparatedConsF g :: * -> * -> *
+  type FlipSeparatedConsG f :: * -> * -> *
+  (+.) ::
+    s
+    -> f s a
+    -> g a s
+
+infixr 5 +.
+
+instance FlipSeparatedCons FlipSeparated1 FlipSeparated where
+  type FlipSeparatedConsF FlipSeparated = FlipSeparated1
+  type FlipSeparatedConsG FlipSeparated1 = FlipSeparated
+  s +. p =
+    (s +: p ^. flipSeparated1Iso) ^. from flipSeparatedIso
+
+instance FlipSeparatedCons FlipSeparated FlipSeparated1 where
+  type FlipSeparatedConsF FlipSeparated1 = FlipSeparated
+  type FlipSeparatedConsG FlipSeparated = FlipSeparated1
+  a +. p =
+    (a +: p ^. flipSeparatedIso) ^. from flipSeparated1Iso
