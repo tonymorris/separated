@@ -404,7 +404,7 @@ allValues1 (Separated1 a x) =
 -- >>> [] ^. separatedIso
 -- []
 --
--- [(6, [])] ^. separatedIso
+-- >>> [(6, [])] ^. separatedIso
 -- [6,[]]
 separatedIso ::
   Iso' [(s, a)] (Separated s a)
@@ -574,7 +574,7 @@ fempty =
 -- >>> [] ^. separatedIso . from flipSeparatedIso
 -- []
 --
--- [(6, [])] ^. separatedIso . from flipSeparatedIso
+-- >>> [(6, [])] ^. separatedIso . from flipSeparatedIso
 -- [6,[]]
 flipSeparatedIso ::
   Iso' (FlipSeparated a s) (Separated s a)
@@ -591,8 +591,8 @@ flipSeparatedIso =
 -- >>> [] ^. separatedIso . from flipSeparatedSwapIso
 -- []
 --
--- [(6, [])] ^. separatedIso . from flipSeparatedSwapIso
--- [6,[]]
+-- >>> [(6, [])] ^. separatedIso . from flipSeparatedSwapIso
+-- [[],6]
 flipSeparatedSwapIso ::
     Iso' (FlipSeparated a s) (Separated a s)
 flipSeparatedSwapIso =
