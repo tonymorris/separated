@@ -311,16 +311,16 @@ infixr 5 +:.
 
 -- | Return all element values in a list of pairs of element and separator values.
 --
--- separatedValues empty
+-- >>> separatedValues empty
 -- []
 --
--- separatedValues ('x' +: 2 +: empty)
+-- >>> separatedValues ('x' +: 2 +: empty)
 -- [2]
 separatedValues ::
-  Separated a s
+  Separated s a
   -> [a]
 separatedValues (Separated x) =
-  fmap fst x
+  fmap snd x
 
 -- | Return all element values.
 --
@@ -344,8 +344,8 @@ separated1Values (Separated1 a x) =
 -- >>> separators empty
 -- []
 --
--- separators ('x' +: 2 +: empty)
--- ['x']
+-- >>> separators ('x' +: 2 +: empty)
+-- "x"
 separators ::
   Separated s a
   -> [s]
