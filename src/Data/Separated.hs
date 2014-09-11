@@ -46,7 +46,7 @@ module Data.Separated(
 , separatedWith1
 ) where
 
-import Prelude(Eq, Ord, Show(..), Functor(..), Monad(..), Bool(..), fst, snd, const, id, not, (.))
+import Prelude(Eq, Ord, Show(..), Functor(..), Monad(..), fst, snd, (.))
 import Data.List.NonEmpty(NonEmpty(..))
 import Data.List(intercalate, zipWith, repeat)
 import Control.Lens(Lens', Iso', lens, iso, from, (#), (^.))
