@@ -44,6 +44,7 @@ library
   exposed-modules:
                     Data.Separated
                     Data.Separated.FlipSeparated
+                    Data.Separated.FlipSeparatedCons
                     Data.Separated.Separated
                     Data.Separated.SeparatedCons
 

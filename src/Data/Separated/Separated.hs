@@ -115,7 +115,7 @@ instance Monoid s => Applicative (Separated1 s) where
   (<*>) =
     separated1Ap mappend
   pure =
-    Separated1 mempty . flipSeparated . pure
+    Separated1 mempty . swapSeparated . pure
 
 -- | The isomorphism to element values interspersed with a separator.
 --
@@ -159,8 +159,6 @@ separated1Tail ::
   Lens (Separated1 a s) (Separated1 a t) (Separated s a) (Separated t a)
 separated1Tail =
   from separated1 . _2
-
-
 
 ----
 
@@ -246,8 +244,6 @@ separatedSwap =
 
 ----
 
-----
-
 showSeparated ::
  (Show a, Show s, Functor f) =>
  (f String -> [String])
@@ -272,8 +268,8 @@ separated1Ap ::
 separated1Ap op (Separated1 f (Separated fs)) (Separated1 a (Separated as)) =
     Separated1 (f `op` a) (Separated (zipWith (\(s, f') (t, a') -> (s t, f' `op` a')) fs as))
 
-flipSeparated ::
+swapSeparated ::
   Separated s a
   -> Separated a s
-flipSeparated (Separated x) =
+swapSeparated (Separated x) =
   Separated (fmap (\(s, a) -> (a, s)) x)

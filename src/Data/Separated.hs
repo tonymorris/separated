@@ -5,5 +5,6 @@ module Data.Separated(
 ) where
 
 import Data.Separated.FlipSeparated as S
+import Data.Separated.FlipSeparatedCons as S
 import Data.Separated.Separated as S
 import Data.Separated.SeparatedCons as S
