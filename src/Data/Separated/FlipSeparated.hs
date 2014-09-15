@@ -142,11 +142,3 @@ flipSeparated1Ap op (FlipSeparated1 x) (FlipSeparated1 y) =
   let (f, fs) = separated1 # x
       (a, as) = separated1 # y
   in FlipSeparated1 ((f a, zipWith (\(s, a') (t, f') -> (s `op` t, f' a')) (separated # as) (separated # fs) ^. separated) ^. separated1) 
-
-{-
-separated1 ::
-  Iso (a, Separated s a) (b, Separated t b) (Separated1 a s) (Separated1 b t)
-separated1 =
-  iso (\(a, x) -> Separated1 a x) (\(Separated1 a x) -> (a, x))
--}
-undef = undef
