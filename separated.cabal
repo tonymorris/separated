@@ -30,6 +30,7 @@ library
                     , lens >= 4.0
                     , semigroups >= 0.9
                     , semigroupoids >= 4.0
+                    , bifunctors >= 4.0
 
   ghc-options:
                     -Wall
@@ -42,6 +43,9 @@ library
 
   exposed-modules:
                     Data.Separated
+                    Data.Separated.FlipSeparated
+                    Data.Separated.Separated
+                    Data.Separated.SeparatedCons
 
 test-suite doctests
   type:
