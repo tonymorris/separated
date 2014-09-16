@@ -34,6 +34,7 @@ import Data.Ord(Ord)
 import Data.Semigroup(Semigroup((<>)))
 import Data.Separated.SeparatedCons(SeparatedCons((+:), SeparatedConsF, SeparatedConsG))
 import Data.String(String)
+import Data.Tuple(uncurry)
 import Prelude(Show(show))
 import Control.Lens((^.), (#))
 
@@ -56,7 +57,7 @@ data Separated s a =
 
 instance Bifunctor Separated where
   bimap f g (Separated x) =
-    Separated (fmap (\(s, a) -> (f s, g a)) x)
+    Separated (fmap (bimap f g) x)
 
 -- | Map across a @Separated@ on the element values.
 --
@@ -195,7 +196,7 @@ instance Monoid s => Applicative (Separated1 s) where
 separated1 ::
   Iso (a, Separated s a) (b, Separated t b) (Separated1 a s) (Separated1 b t)
 separated1 =
-  iso (\(a, x) -> Separated1 a x) (\(Separated1 a x) -> (a, x))
+  iso (uncurry Separated1) (\(Separated1 a x) -> (a, x))
 
 instance SeparatedCons Separated Separated1 where
   type SeparatedConsF Separated1 = Separated
