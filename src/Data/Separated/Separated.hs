@@ -2,7 +2,19 @@
 {-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
 
-module Data.Separated.Separated where
+module Data.Separated.Separated(
+  Separated
+, separated
+, Separated1
+, separated1
+, separated1Head
+, separated1Tail
+, empty
+, (+-)
+, single
+, shift
+, separatedSwap
+) where
 
 import Control.Applicative(Applicative((<*>), pure))
 import Control.Category(Category(id, (.)))
