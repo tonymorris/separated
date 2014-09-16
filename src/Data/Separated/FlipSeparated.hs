@@ -6,6 +6,7 @@ module Data.Separated.FlipSeparated(
   FlipSeparated
 , flipSeparated
 , flipSeparated1
+, fempty
 ) where
 
 import Control.Applicative(Applicative(pure, (<*>)))
@@ -22,7 +23,7 @@ import Data.Monoid(Monoid(mappend, mempty))
 import Data.Ord(Ord)
 import Data.Semigroup(Semigroup((<>)))
 import Data.Separated.FlipSeparatedCons(FlipSeparatedCons(FlipSeparatedConsF, FlipSeparatedConsG, (+.)))
-import Data.Separated.Separated(Separated, Separated1, separated, separated1, separatedSwap)
+import Data.Separated.Separated(Separated, Separated1, separated, separated1, separatedSwap, empty)
 import Data.Separated.SeparatedCons((+:))
 import Prelude(Show(show))
 
@@ -30,8 +31,10 @@ import Prelude(Show(show))
 -- >>> :set -XNoImplicitPrelude
 -- >>> import Control.Monad(Monad(return))
 -- >>> import Data.Int(Int)
+-- >>> import Data.Eq(Eq((==)))
 -- >>> import Data.Separated.Separated(empty, single)
 -- >>> import Data.String(String)
+-- >>> import Prelude(Num((+)))
 -- >>> import Test.QuickCheck(Arbitrary(..))
 -- >>> instance (Arbitrary s, Arbitrary a) => Arbitrary (Separated s a) where arbitrary = fmap (^. separated) arbitrary
 -- >>> instance (Arbitrary a, Arbitrary s) => Arbitrary (Separated1 s a) where arbitrary = do a <- arbitrary; x <- arbitrary; return ((a, x) ^. separated1)
@@ -46,6 +49,11 @@ instance Bifunctor FlipSeparated where
   bimap f g (FlipSeparated x) =
     FlipSeparated (bimap g f x)
 
+-- | Map across a @FlipSeparated@ on the separator values.
+--
+-- prop> fmap id (x :: FlipSeparated Int String) == x
+--
+-- prop> fmap (+1) (a +. b +. fempty) == (1+a) +. b +. fempty
 instance Functor (FlipSeparated a) where
   fmap =
     bimap id
@@ -97,6 +105,11 @@ flipSeparated ::
   Iso (Separated s a) (Separated t b) (FlipSeparated a s) (FlipSeparated b t) 
 flipSeparated =
   iso FlipSeparated (\(FlipSeparated x) -> x) 
+
+fempty ::
+  FlipSeparated a s
+fempty =
+  FlipSeparated empty
 
 newtype FlipSeparated1 s a =
   FlipSeparated1 (Separated1 a s)
