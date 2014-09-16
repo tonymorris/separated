@@ -31,7 +31,7 @@ import Prelude(Show(show))
 -- >>> import Data.Separated(empty, single)
 -- >>> import Prelude(String, Int)
 -- >>> import Test.QuickCheck(Arbitrary(..))
--- >>> instance (Arbitrary s, Arbitrary a) => Arbitrary (FlipSeparated a s) where arbitrary = fmap FlipSeparated arbitrary
+-- >>> -- instance (Arbitrary s, Arbitrary a) => Arbitrary (FlipSeparated a s) where arbitrary = fmap FlipSeparated arbitrary
 -- >>> -- instance (Arbitrary a, Arbitrary s) => Arbitrary (FlipSeparated1 s a) where arbitrary = do a <- arbitrary; x <- arbitrary; return (FlipSeparated1 a x)
 
 newtype FlipSeparated a s =
