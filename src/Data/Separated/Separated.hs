@@ -43,8 +43,8 @@ import Prelude(Show(show))
 -- >>> import Control.Lens(set, (^.))
 -- >>> import Prelude(Num(..), String, Int)
 -- >>> import Test.QuickCheck(Arbitrary(..))
--- >>> instance (Arbitrary s, Arbitrary a) => Arbitrary (Separated s a) where arbitrary = fmap Separated arbitrary
--- >>> instance (Arbitrary a, Arbitrary s) => Arbitrary (Separated1 s a) where arbitrary = do a <- arbitrary; x <- arbitrary; return (Separated1 a x)
+-- >>> instance (Arbitrary s, Arbitrary a) => Arbitrary (Separated s a) where arbitrary = fmap (^. separated) arbitrary
+-- >>> instance (Arbitrary a, Arbitrary s) => Arbitrary (Separated1 s a) where arbitrary = do a <- arbitrary; x <- arbitrary; return ((a, x) ^. separated1)
 
 data Separated s a =
   Separated [(s, a)]

@@ -11,7 +11,7 @@ module Data.Separated.FlipSeparated(
 import Control.Applicative(Applicative(pure, (<*>)))
 import Control.Category(Category(id, (.)))
 import Control.Lens.Getter((^.))
-import Control.Lens.Iso(Iso, iso, from)
+import Control.Lens.Iso(Iso, iso)
 import Control.Lens.Review((#))
 import Data.Bifunctor(Bifunctor(bimap))
 import Data.Eq(Eq)
@@ -28,11 +28,15 @@ import Prelude(Show(show))
 
 -- $setup
 -- >>> :set -XNoImplicitPrelude
--- >>> import Data.Separated(empty, single)
--- >>> import Prelude(String, Int)
+-- >>> import Control.Monad(Monad(return))
+-- >>> import Data.Int(Int)
+-- >>> import Data.Separated.Separated(empty, single)
+-- >>> import Data.String(String)
 -- >>> import Test.QuickCheck(Arbitrary(..))
--- >>> -- instance (Arbitrary s, Arbitrary a) => Arbitrary (FlipSeparated a s) where arbitrary = fmap FlipSeparated arbitrary
--- >>> -- instance (Arbitrary a, Arbitrary s) => Arbitrary (FlipSeparated1 s a) where arbitrary = do a <- arbitrary; x <- arbitrary; return (FlipSeparated1 a x)
+-- >>> instance (Arbitrary s, Arbitrary a) => Arbitrary (Separated s a) where arbitrary = fmap (^. separated) arbitrary
+-- >>> instance (Arbitrary a, Arbitrary s) => Arbitrary (Separated1 s a) where arbitrary = do a <- arbitrary; x <- arbitrary; return ((a, x) ^. separated1)
+-- >>> instance (Arbitrary s, Arbitrary a) => Arbitrary (FlipSeparated a s) where arbitrary = fmap FlipSeparated arbitrary
+-- >>> instance (Arbitrary a, Arbitrary s) => Arbitrary (FlipSeparated1 s a) where arbitrary = do a <- arbitrary; return (FlipSeparated1 a)
 
 newtype FlipSeparated a s =
   FlipSeparated (Separated s a)
@@ -74,25 +78,25 @@ instance FlipSeparatedCons FlipSeparated1 FlipSeparated where
   type FlipSeparatedConsF FlipSeparated = FlipSeparated1
   type FlipSeparatedConsG FlipSeparated1 = FlipSeparated
   s +. p =
-    (s +: p ^. flipSeparated1) ^. from flipSeparated
+    (s +: flipSeparated1 # p) ^. flipSeparated
 
 -- | The isomorphism to a @Separator@.
 --
--- >>> flipSeparated # empty
+-- >>> empty ^. flipSeparated
 -- []
 --
--- >>> flipSeparated # ('x' +: 6 +: empty)
+-- >>> ('x' +: 6 +: empty) ^. flipSeparated
 -- ['x',6]
 --
--- >>> [] ^. separated . from flipSeparated
+-- >>> [] ^. separated . flipSeparated
 -- []
 --
--- >>> [(6, [])] ^. separated . from flipSeparated
+-- >>> [(6, [])] ^. separated . flipSeparated
 -- [6,[]]
 flipSeparated ::
-  Iso (FlipSeparated a s) (FlipSeparated b t) (Separated s a) (Separated t b)
+  Iso (Separated s a) (Separated t b) (FlipSeparated a s) (FlipSeparated b t) 
 flipSeparated =
-  iso (\(FlipSeparated x) -> x) FlipSeparated
+  iso FlipSeparated (\(FlipSeparated x) -> x) 
 
 newtype FlipSeparated1 s a =
   FlipSeparated1 (Separated1 a s)
@@ -121,27 +125,27 @@ instance (Show s, Show a) => Show (FlipSeparated1 s a) where
 
 -- | The isomorphism to a @Separated1@.
 --
--- >>> flipSeparated1 # (single 6)
+-- >>>  single 6 ^. flipSeparated1
 -- [6]
 --
--- >>> flipSeparated1 # (5 +: 'x' +: single 6)
+-- >>>  (5 +: 'x' +: single 6) ^. flipSeparated1
 -- [5,'x',6]
 --
--- >>> (6 +: empty) ^. from flipSeparated1
+-- >>> (6 +: empty) ^. flipSeparated1
 -- [6]
 --
--- >>> (5 +: 'x' +: 6 +: empty) ^. from flipSeparated1
+-- >>> (5 +: 'x' +: 6 +: empty) ^. flipSeparated1
 -- [5,'x',6]
 flipSeparated1 ::
-  Iso (FlipSeparated1 s a) (FlipSeparated1 t b) (Separated1 a s) (Separated1 b t)
+  Iso (Separated1 a s) (Separated1 b t) (FlipSeparated1 s a) (FlipSeparated1 t b)
 flipSeparated1 =
-  iso (\(FlipSeparated1 x) -> x) FlipSeparated1
+  iso FlipSeparated1 (\(FlipSeparated1 x) -> x)
 
 instance FlipSeparatedCons FlipSeparated FlipSeparated1 where
   type FlipSeparatedConsF FlipSeparated1 = FlipSeparated
   type FlipSeparatedConsG FlipSeparated = FlipSeparated1
   a +. p =
-    (a +: p ^. flipSeparated) ^. from flipSeparated1
+    (a +: flipSeparated # p) ^. flipSeparated1
 
 ----
 
