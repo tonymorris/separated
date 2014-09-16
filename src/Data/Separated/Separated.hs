@@ -20,8 +20,11 @@ import Data.String(String)
 import Prelude(Show(show))
 
 -- $setup
--- >>> import Prelude -- (Eq(..), Num(..), String, Int, id)
+-- >>> :set -XNoImplicitPrelude
+-- >>> import Prelude(Num(..), String, Int)
+-- >>> import Control.Monad(Monad(return))
 -- >>> import Data.Char(toUpper)
+-- >>> import Data.Eq(Eq((==)))
 -- >>> import Data.List(reverse, drop)
 -- >>> import Control.Lens(set, (^.))
 -- >>> import Test.QuickCheck(Arbitrary(..))
@@ -38,14 +41,36 @@ instance Bifunctor Separated where
   bimap f g (Separated x) =
     Separated (fmap (\(s, a) -> (f s, g a)) x)
 
+-- | Map across a @Separated@ on the element values.
+--
+-- prop> fmap id (x :: Separated Int String) == x
+--
+-- prop> fmap (+1) (a +: b +: empty) == a +: (1+b) +: empty
 instance Functor (Separated s) where
   fmap =
     bimap id
 
+-- | Applies functions with element values, using a zipping operation, appending
+-- separators.
+--
+-- >>> (empty :: Separated [Int] (String -> [String])) <.> empty
+-- []
+--
+-- >>> [1,2] +: (\s -> [s, reverse s, drop 1 s]) +: empty <.> [3,4,5] +: "abc" +: empty
+-- [[1,2,3,4,5],["abc","cba","bc"]]
 instance Semigroup s => Apply (Separated s) where
   (<.>) =
     separatedAp (<>)
 
+-- | Applies functions with element values, using a zipping operation, appending
+-- separators. The identity operation is an infinite list of the empty separator
+-- and the given element value.
+--
+-- >>> (empty :: Separated [Int] (String -> [String])) <*> empty
+-- []
+--
+-- >>> [1,2] +: (\s -> [s, reverse s, drop 1 s]) +: empty <*> [3,4,5] +: "abc" +: empty
+-- [[1,2,3,4,5],["abc","cba","bc"]]
 instance Monoid s => Applicative (Separated s) where    
   (<*>) =
     separatedAp mappend
@@ -94,15 +119,29 @@ separated =
 
 data Separated1 a s =
   Separated1 a (Separated s a)
+  deriving (Eq, Ord)
 
 instance Bifunctor Separated1 where
   bimap f g (Separated1 a x) =
     Separated1 (f a) (bimap g f x)
 
+-- | Map across a @Separated1@ on the separator values.
+--
+-- >>> fmap (+1) (set separated1Tail (1 +: 'b' +: 2 +: 'c' +: empty) (single 'a'))
+-- ['a',2,'b',3,'c']
+--
+-- prop> fmap id (x :: Separated1 Int String) == x
+--
+-- prop> fmap (+1) (single x) == single x
 instance Functor (Separated1 s) where
   fmap =
     bimap id
 
+-- | Applies functions with separator values, using a zipping operation,
+-- appending elements.
+--
+-- >>> [1,2] +: reverse +: [3,4] +: empty <.> [5,6,7] +: "abc" +: [8] +: empty
+-- [[1,2,5,6,7],"cba",[3,4,8]]
 instance Semigroup s => Apply (Separated1 s) where
   (<.>) =
     separated1Ap (<>)
@@ -111,6 +150,12 @@ instance (Show a, Show s) => Show (Separated1 a s) where
   show (Separated1 a (Separated x)) =
     showSeparated (show a:) x
     
+-- | Applies functions with separator values, using a zipping operation,
+-- appending elements. The identity operation is an infinite list of the empty
+-- element and the given separator value.
+--
+-- >>> [1,2] +: reverse +: [3,4] +: empty <*> [5,6,7] +: "abc" +: [8] +: empty
+-- [[1,2,5,6,7],"cba",[3,4,8]]
 instance Monoid s => Applicative (Separated1 s) where    
   (<*>) =
     separated1Ap mappend

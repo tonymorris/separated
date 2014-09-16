@@ -5,7 +5,7 @@
 module Data.Separated.FlipSeparated(
 ) where
 
-import Control.Applicative
+import Control.Applicative(Applicative(pure, (<*>)))
 import Control.Category
 import Control.Lens hiding ((<.>))
 import Data.Bifunctor
