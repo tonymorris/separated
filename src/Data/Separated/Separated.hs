@@ -14,6 +14,9 @@ module Data.Separated.Separated(
 , single
 , shift
 , separatedSwap
+, (.++.)
+, (++.)
+, (.++)
 ) where
 
 import Control.Applicative(Applicative((<*>), pure))
@@ -32,6 +35,7 @@ import Data.Semigroup(Semigroup((<>)))
 import Data.Separated.SeparatedCons(SeparatedCons((+:), SeparatedConsF, SeparatedConsG))
 import Data.String(String)
 import Prelude(Show(show))
+import Control.Lens((^.), (#))
 
 -- $setup
 -- >>> :set -XNoImplicitPrelude
@@ -297,6 +301,65 @@ separatedSwap ::
 separatedSwap =
   let swap (a, b) = (b, a)
   in iso (\(Separated x) -> Separated (fmap swap x)) (\(Separated x) -> Separated (fmap swap x))
+
+
+-- | Append two lists of separated values to produce a list of pairs of separator and element values.
+--
+-- >>> single 7 .++. single 'a'
+-- [7,'a']
+--
+-- 'a' +: single 7 .++. single 'b'
+-- ['a',7,'b']
+--
+-- prop> a +: (b .++. c) == (a +: b) *+: c
+(.++.) ::
+   Separated1 s a
+   -> Separated1 a s
+   -> Separated s a
+Separated1 s x .++. Separated1 t (Separated y) =
+  let (q, r') = (s, x) ^. separated1 . shift
+  in Separated (q <> ((r', t) : y)) 
+
+infixr 5 .++.
+
+-- | Append element values interspersed with a separator to a list of pairs of separator and element values.
+--
+-- >>> empty ++. single 7
+-- [7]
+--
+-- >>> empty ++. 6 +: 'x' +: single 7
+-- [6,'x',7]
+--
+-- >>> 'w' +: empty ++. 6 +: 'x' +: single 7
+-- ['w',6,'x',7]
+(++.) ::
+  Separated s a
+  -> Separated1 s a
+  -> Separated1 s a
+Separated x ++. Separated1 t y =
+  let (z, w') = separated1 . shift # (x, t)
+  in Separated1 z (w' <> y)
+
+infixr 5 ++.
+
+-- | Append a list of pairs of separator and element values to element values interspersed with a separator.
+--
+-- >>> single 7 .++ empty
+-- [7]
+--
+-- >>> single 6 .++ 'x' +: 7 +: empty
+-- [6,'x',7]
+--
+-- >>> 'w' +: single 6 .++ 'x' +: 7 +: empty
+-- ['w',6,'x',7]
+(.++) ::
+  Separated1 a s
+  -> Separated s a
+  -> Separated1 a s
+Separated1 a x .++ y =
+  Separated1 a (x <> y)
+
+infixr 5 .++
 
 --- -- values, separators, lookup, FlipSeparated, combinators
 
