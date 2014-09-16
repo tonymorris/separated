@@ -30,8 +30,10 @@ import Prelude(Show(show))
 -- $setup
 -- >>> :set -XNoImplicitPrelude
 -- >>> import Control.Monad(Monad(return))
+-- >>> import Data.Char(toUpper)
 -- >>> import Data.Int(Int)
 -- >>> import Data.Eq(Eq((==)))
+-- >>> import Data.List(reverse, drop)
 -- >>> import Data.Separated.Separated(empty, single)
 -- >>> import Data.String(String)
 -- >>> import Prelude(Num((+)))
@@ -58,10 +60,27 @@ instance Functor (FlipSeparated a) where
   fmap =
     bimap id
 
+-- | Applies functions with separator values, using a zipping operation,
+-- appending elements.
+--
+-- >>> (fempty :: FlipSeparated [Int] (String -> [String])) <.> fempty
+-- []
+--
+-- >>> (\s -> [s, reverse s, drop 1 s]) +. [1,2] +. fempty <.> "abc" +. [3,4,5] +. fempty
+-- [["abc","cba","bc"],[1,2,3,4,5]]
 instance Semigroup a => Apply (FlipSeparated a) where
   FlipSeparated x <.> FlipSeparated y =
     FlipSeparated (separatedSwap # (x ^. separatedSwap <.> y ^. separatedSwap))
 
+-- | Applies functions with separator values, using a zipping operation, appending
+-- elements. The identity operation is an infinite list of the empty element
+-- and the given separator value.
+--
+-- >>> (fempty :: FlipSeparated [Int] (String -> [String])) <*> fempty
+-- []
+--
+-- >>> (\s -> [s, reverse s, drop 1 s]) +. [1,2] +. fempty <*> "abc" +. [3,4,5] +. fempty
+-- [["abc","cba","bc"],[1,2,3,4,5]]
 instance Monoid s => Applicative (FlipSeparated s) where    
   FlipSeparated x <*> FlipSeparated y =
     FlipSeparated (separatedSwap # (x ^. separatedSwap <*> y ^. separatedSwap))
@@ -122,10 +141,21 @@ instance Functor (FlipSeparated1 a) where
   fmap =
     bimap id
 
+-- | Applies functions with element values, using a zipping operation,
+-- appending separators.
+--
+-- >>> fmap toUpper +. [3,4] +. reverse +. fempty <.> "abc" +. [5,6,7] +. "def" +. fempty
+-- ["ABC",[3,4,5,6,7],"fed"]
 instance Semigroup a => Apply (FlipSeparated1 a) where
   (<.>) =
     flipSeparated1Ap (<>)
 
+-- | Applies functions with element values, using a zipping operation,
+-- appending separators. The identity operation is an infinite list of the empty
+-- separator and the given element value.
+--
+-- >>> fmap toUpper +. [3,4] +. reverse +. fempty <*> "abc" +. [5,6,7] +. "def" +. fempty
+-- ["ABC",[3,4,5,6,7],"fed"]
 instance Monoid s => Applicative (FlipSeparated1 s) where    
   (<*>) =
     flipSeparated1Ap mappend
@@ -170,4 +200,4 @@ flipSeparated1Ap ::
 flipSeparated1Ap op (FlipSeparated1 x) (FlipSeparated1 y) =
   let (f, fs) = separated1 # x
       (a, as) = separated1 # y
-  in FlipSeparated1 ((f a, zipWith (\(s, a') (t, f') -> (s `op` t, f' a')) (separated # as) (separated # fs) ^. separated) ^. separated1) 
+  in FlipSeparated1 ((f a, zipWith (\(s, f') (t, a') -> (s `op` t, f' a')) (separated # fs) (separated # as) ^. separated) ^. separated1) 
