@@ -6,7 +6,9 @@ module Data.Separated.Separated where
 
 import Control.Applicative(Applicative((<*>), pure))
 import Control.Category(Category(id, (.)))
-import Control.Lens(Iso, iso, Lens, Lens', lens, from, _1, _2, (#))
+import Control.Lens.Iso(Iso, iso, from)
+import Control.Lens.Tuple(_1, _2)
+import Control.Lens.Type(Lens)
 import Data.Functor(Functor(fmap))
 import Data.Functor.Apply(Apply((<.>)))
 import Data.Bifunctor(Bifunctor(bimap))
@@ -21,17 +23,16 @@ import Prelude(Show(show))
 
 -- $setup
 -- >>> :set -XNoImplicitPrelude
--- >>> import Prelude(Num(..), String, Int)
+-- >>> import Control.Lens.Review((#))
 -- >>> import Control.Monad(Monad(return))
 -- >>> import Data.Char(toUpper)
 -- >>> import Data.Eq(Eq((==)))
 -- >>> import Data.List(reverse, drop)
 -- >>> import Control.Lens(set, (^.))
+-- >>> import Prelude(Num(..), String, Int)
 -- >>> import Test.QuickCheck(Arbitrary(..))
 -- >>> instance (Arbitrary s, Arbitrary a) => Arbitrary (Separated s a) where arbitrary = fmap Separated arbitrary
 -- >>> instance (Arbitrary a, Arbitrary s) => Arbitrary (Separated1 s a) where arbitrary = do a <- arbitrary; x <- arbitrary; return (Separated1 a x)
--- >>> -- instance (Arbitrary s, Arbitrary a) => Arbitrary (FlipSeparated a s) where arbitrary = fmap FlipSeparated arbitrary
--- >>> -- instance (Arbitrary a, Arbitrary s) => Arbitrary (FlipSeparated1 s a) where arbitrary = do a <- arbitrary; x <- arbitrary; return (FlipSeparated1 a x)
 
 data Separated s a =
   Separated [(s, a)]

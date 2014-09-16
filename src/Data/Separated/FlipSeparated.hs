@@ -3,22 +3,36 @@
 {-# LANGUAGE MultiParamTypeClasses #-}
 
 module Data.Separated.FlipSeparated(
+  FlipSeparated
+, flipSeparated
+, flipSeparated1
 ) where
 
 import Control.Applicative(Applicative(pure, (<*>)))
-import Control.Category
-import Control.Lens hiding ((<.>))
-import Data.Bifunctor
+import Control.Category(Category(id, (.)))
+import Control.Lens.Getter((^.))
+import Control.Lens.Iso(Iso, iso, from)
+import Control.Lens.Review((#))
+import Data.Bifunctor(Bifunctor(bimap))
 import Data.Eq(Eq)
-import Data.Functor
-import Data.Functor.Apply
+import Data.Functor(Functor(fmap))
+import Data.Functor.Apply(Apply((<.>)))
 import Data.List(zipWith)
+import Data.Monoid(Monoid(mappend, mempty))
 import Data.Ord(Ord)
-import Data.Semigroup
-import Data.Separated.FlipSeparatedCons
-import Data.Separated.Separated
-import Data.Separated.SeparatedCons
+import Data.Semigroup(Semigroup((<>)))
+import Data.Separated.FlipSeparatedCons(FlipSeparatedCons(FlipSeparatedConsF, FlipSeparatedConsG, (+.)))
+import Data.Separated.Separated(Separated, Separated1, separated, separated1, separatedSwap)
+import Data.Separated.SeparatedCons((+:))
 import Prelude(Show(show))
+
+-- $setup
+-- >>> :set -XNoImplicitPrelude
+-- >>> import Data.Separated(empty, single)
+-- >>> import Prelude(String, Int)
+-- >>> import Test.QuickCheck(Arbitrary(..))
+-- >>> -- instance (Arbitrary s, Arbitrary a) => Arbitrary (FlipSeparated a s) where arbitrary = fmap FlipSeparated arbitrary
+-- >>> -- instance (Arbitrary a, Arbitrary s) => Arbitrary (FlipSeparated1 s a) where arbitrary = do a <- arbitrary; x <- arbitrary; return (FlipSeparated1 a x)
 
 newtype FlipSeparated a s =
   FlipSeparated (Separated s a)
@@ -79,8 +93,6 @@ flipSeparated ::
   Iso (FlipSeparated a s) (FlipSeparated b t) (Separated s a) (Separated t b)
 flipSeparated =
   iso (\(FlipSeparated x) -> x) FlipSeparated
-
-----
 
 newtype FlipSeparated1 s a =
   FlipSeparated1 (Separated1 a s)
