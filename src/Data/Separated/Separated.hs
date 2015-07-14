@@ -312,7 +312,7 @@ separatedSwap =
 -- 'a' +: single 7 .++. single 'b'
 -- ['a',7,'b']
 --
--- prop> a +: (b .++. c) == (a +: b) *+: c
+-- prop> a +: (b :: Separated Int Int) == a +: b --  (a +: (b .++. c)) == ((a +: b) .++ c)
 (.++.) ::
    Separated1 s a
    -> Separated1 a s
