@@ -1,17 +1,18 @@
 name:               separated
-version:            0.0.1
+version:            0.1.0
 license:            BSD3
 license-File:       etc/LICENCE
 author:             Tony Morris <ʇǝu˙sıɹɹoɯʇ@ןןǝʞsɐɥ>
 maintainer:         Tony Morris
-copyright:          Copyright (C) 2013 Tony Morris
+copyright:          Copyright (C) 2013-2014 Tony Morris
 synopsis:           A data type with elements separated by values
 category:           Data
 description:        A data type with elements separated by values
 homepage:           https://github.com/tonymorris/separated
-bug-reports:        https://github.com/tonymorris/route/separated
+bug-reports:        https://github.com/tonymorris/separated/issues
 cabal-version:      >= 1.10
 build-type:         Custom
+extra-source-files: changelog
 
 source-repository   head
   type:             git
@@ -26,8 +27,11 @@ library
 
   build-depends:
                     base < 5 && >= 3
-                    , lens >= 3.10
+                    , lens >= 4.0
                     , semigroups >= 0.9
+                    , semigroupoids >= 4.0
+                    , bifunctors >= 4.0
+                    , papa
 
   ghc-options:
                     -Wall
@@ -40,6 +44,8 @@ library
 
   exposed-modules:
                     Data.Separated
+                    Data.Separated.Separated
+                    Data.Separated.SeparatedCons
 
 test-suite doctests
   type:
@@ -52,11 +58,12 @@ test-suite doctests
                     Haskell2010
 
   build-depends:
-                    base < 5 && >= 3,
-                    doctest >= 0.9.7,
-                    filepath >= 1.3,
-                    directory >= 1.1,
-                    QuickCheck >= 2.0
+                    base < 5 && >= 3
+                    , doctest >= 0.9.7
+                    , filepath >= 1.3
+                    , directory >= 1.1
+                    , QuickCheck >= 2.0
+                    , template-haskell >= 2.8
 
   ghc-options:
                     -Wall
@@ -64,4 +71,3 @@ test-suite doctests
 
   hs-source-dirs:
                     test
-
