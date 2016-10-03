@@ -36,8 +36,8 @@ import Papa hiding ((<.>))
 -- >>> instance (Arbitrary s, Arbitrary a) => Arbitrary (Separated s a) where arbitrary = fmap (^. separated) arbitrary
 -- >>> instance (Arbitrary a, Arbitrary s) => Arbitrary (Separated1 s a) where arbitrary = do a <- arbitrary; x <- arbitrary; return ((a, x) ^. separated1)
 
-newtype Separated s a =
-  Separated [(s, a)]
+newtype Separated a b =
+  Separated [(a, b)]
   deriving (Eq, Ord)
 
 instance Bifunctor Separated where
@@ -57,7 +57,7 @@ instance Bitraversable Separated where
 -- prop> fmap id (x :: Separated Int String) == x
 --
 -- prop> \a b -> fmap (+1) (a +: b +: empty) == a +: (1+b) +: empty
-instance Functor (Separated s) where
+instance Functor (Separated a) where
   fmap =
     bimap id
 
@@ -69,7 +69,7 @@ instance Functor (Separated s) where
 --
 -- >>> [1,2] +: (\s -> [s, reverse s, drop 1 s]) +: empty <.> [3,4,5] +: "abc" +: empty
 -- [[1,2,3,4,5],["abc","cba","bc"]]
-instance Semigroup s => Apply (Separated s) where
+instance Semigroup a => Apply (Separated a) where
   (<.>) =
     separatedAp (<>)
 
@@ -82,21 +82,21 @@ instance Semigroup s => Apply (Separated s) where
 --
 -- >>> [1,2] +: (\s -> [s, reverse s, drop 1 s]) +: empty <*> [3,4,5] +: "abc" +: empty
 -- [[1,2,3,4,5],["abc","cba","bc"]]
-instance (Semigroup s, Monoid s) => Applicative (Separated s) where    
+instance (Semigroup a, Monoid a) => Applicative (Separated a) where    
   (<*>) =
     separatedAp (<>)
   pure =
     Separated . repeat . (,) mempty
 
-instance (Show s, Show a) => Show (Separated s a) where
+instance (Show a, Show b) => Show (Separated a b) where
   show (Separated x) =
     showSeparated id x
 
-instance Semigroup (Separated s a) where
+instance Semigroup (Separated a b) where
   Separated x <> Separated y =
     Separated (x <> y)    
 
-instance Monoid (Separated s a) where
+instance Monoid (Separated a b) where
   mappend =
     (<>)
   mempty =
@@ -107,6 +107,61 @@ instance SeparatedCons Separated1 Separated where
   type SeparatedConsG Separated1 = Separated
   s +: Separated1 a (Separated x) =
     Separated ((s, a) : x)
+
+----
+
+data Separated1 b a =
+  Separated1 b (Separated a b)
+  deriving (Eq, Ord)
+
+instance Bifunctor Separated1 where
+  bimap f g (Separated1 a x) =
+    Separated1 (f a) (bimap g f x)
+
+-- | Map across a @Separated1@ on the separator values.
+--
+-- >>> fmap (+1) (set separated1Tail (1 +: 'b' +: 2 +: 'c' +: empty) (single 'a'))
+-- ['a',2,'b',3,'c']
+--
+-- prop> fmap id (x :: Separated1 Int String) == x
+--
+-- prop> fmap (+1) (single x) == single x
+instance Functor (Separated1 b) where
+  fmap =
+    bimap id
+
+-- | Applies functions with separator values, using a zipping operation,
+-- appending elements.
+--
+-- >>> [1,2] +: reverse +: [3,4] +: empty <.> [5,6,7] +: "abc" +: [8] +: empty
+-- [[1,2,5,6,7],"cba",[3,4,8]]
+instance Semigroup b => Apply (Separated1 b) where
+  (<.>) =
+    separated1Ap (<>)
+
+instance (Show b, Show a) => Show (Separated1 b a) where
+  show (Separated1 a (Separated x)) =
+    showSeparated (show a:) x
+    
+-- | Applies functions with separator values, using a zipping operation,
+-- appending elements. The identity operation is an infinite list of the empty
+-- element and the given separator value.
+--
+-- >>> [1,2] +: reverse +: [3,4] +: empty <*> [5,6,7] +: "abc" +: [8] +: empty
+-- [[1,2,5,6,7],"cba",[3,4,8]]
+instance (Semigroup b, Monoid b) => Applicative (Separated1 b) where    
+  (<*>) =
+    separated1Ap (<>)
+  pure =
+    Separated1 mempty . (separatedSwap #) . pure
+
+instance SeparatedCons Separated Separated1 where
+  type SeparatedConsF Separated1 = Separated
+  type SeparatedConsG Separated = Separated1
+  (+:) =
+    Separated1
+
+----
 
 -- | The isomorphism to a list of pairs of element and separator values.
 --
@@ -122,56 +177,14 @@ instance SeparatedCons Separated1 Separated where
 -- >>> [(6, [])] ^. separated
 -- [6,[]]
 separated ::
-  Iso [(s, a)] [(t, b)] (Separated s a) (Separated t b)
+  Iso [(a, b)] [(c, d)] (Separated a b) (Separated c d)
 separated =
   iso Separated (\(Separated x) -> x)
 
-----
-
-data Separated1 a s =
-  Separated1 a (Separated s a)
-  deriving (Eq, Ord)
-
-instance Bifunctor Separated1 where
-  bimap f g (Separated1 a x) =
-    Separated1 (f a) (bimap g f x)
-
--- | Map across a @Separated1@ on the separator values.
---
--- >>> fmap (+1) (set separated1Tail (1 +: 'b' +: 2 +: 'c' +: empty) (single 'a'))
--- ['a',2,'b',3,'c']
---
--- prop> fmap id (x :: Separated1 Int String) == x
---
--- prop> fmap (+1) (single x) == single x
-instance Functor (Separated1 s) where
-  fmap =
-    bimap id
-
--- | Applies functions with separator values, using a zipping operation,
--- appending elements.
---
--- >>> [1,2] +: reverse +: [3,4] +: empty <.> [5,6,7] +: "abc" +: [8] +: empty
--- [[1,2,5,6,7],"cba",[3,4,8]]
-instance Semigroup s => Apply (Separated1 s) where
-  (<.>) =
-    separated1Ap (<>)
-
-instance (Show a, Show s) => Show (Separated1 a s) where
-  show (Separated1 a (Separated x)) =
-    showSeparated (show a:) x
-    
--- | Applies functions with separator values, using a zipping operation,
--- appending elements. The identity operation is an infinite list of the empty
--- element and the given separator value.
---
--- >>> [1,2] +: reverse +: [3,4] +: empty <*> [5,6,7] +: "abc" +: [8] +: empty
--- [[1,2,5,6,7],"cba",[3,4,8]]
-instance (Semigroup s, Monoid s) => Applicative (Separated1 s) where    
-  (<*>) =
-    separated1Ap (<>)
-  pure =
-    Separated1 mempty . (separatedSwap #) . pure
+empty ::
+  Separated s a
+empty =
+  Separated []
 
 -- | The isomorphism to element values interspersed with a separator.
 --
@@ -191,12 +204,6 @@ separated1 ::
 separated1 =
   iso (uncurry Separated1) (\(Separated1 a x) -> (a, x))
 
-instance SeparatedCons Separated Separated1 where
-  type SeparatedConsF Separated1 = Separated
-  type SeparatedConsG Separated = Separated1
-  (+:) =
-    Separated1
-
 -- | A lens on the first element value.
 --
 -- >>> single 7 ^. separated1Head
@@ -215,13 +222,6 @@ separated1Tail ::
   Lens (Separated1 a s) (Separated1 a t) (Separated s a) (Separated t a)
 separated1Tail =
   from separated1 . _2
-
-----
-
-empty ::
-  Separated s a
-empty =
-  Separated []
 
 -- | One element and one separator.
 --

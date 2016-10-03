@@ -12,7 +12,7 @@ class (f ~ SeparatedConsF g, g ~ SeparatedConsG f) => SeparatedCons f g where
   type SeparatedConsG f :: * -> * -> *
   (+:) ::
     a
-    -> f s a
-    -> g a s
-
+    -> f b a
+    -> g a b
+  
 infixr 5 +:
