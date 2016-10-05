@@ -1,8 +1,12 @@
+0.1.1
+
+* Introduce `separatedBy` and `separatedBy1` combinators.
+
 0.1.0
 
-Refactor and reorganisation of modules.
+* Refactor and reorganisation of modules.
 
 0.0.8
 
-This change log starts.
+* This change log starts.
 
