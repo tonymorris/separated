@@ -32,6 +32,7 @@ library
                     , semigroupoids >= 4.0
                     , bifunctors >= 4.0
                     , papa
+                    , parsec
 
   ghc-options:
                     -Wall
@@ -64,6 +65,7 @@ test-suite doctests
                     , directory >= 1.1
                     , QuickCheck >= 2.0
                     , template-haskell >= 2.8
+                    , parsec >= 3.1
 
   ghc-options:
                     -Wall

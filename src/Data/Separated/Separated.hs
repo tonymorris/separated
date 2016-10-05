@@ -17,8 +17,11 @@ module Data.Separated.Separated(
 , (.++.)
 , (++.)
 , (.++)
+, separatedBy
+, separatedBy1
 ) where
 
+import Control.Applicative(Alternative(many))
 import Data.Bifoldable
 import Data.Bitraversable
 import Data.Functor.Apply as Apply((<.>))
@@ -32,9 +35,12 @@ import Papa hiding ((<.>))
 -- $setup
 -- >>> :set -XNoImplicitPrelude
 -- >>> import Data.Char(toUpper)
+-- >>> import Data.Either(isLeft)
+-- >>> import Text.Parsec(parse, char, digit)
 -- >>> import Test.QuickCheck(Arbitrary(..))
 -- >>> instance (Arbitrary s, Arbitrary a) => Arbitrary (Separated s a) where arbitrary = fmap (^. separated) arbitrary
 -- >>> instance (Arbitrary a, Arbitrary s) => Arbitrary (Separated1 s a) where arbitrary = do a <- arbitrary; x <- arbitrary; return ((a, x) ^. separated1)
+
 
 newtype Separated a b =
   Separated [(a, b)]
@@ -355,6 +361,56 @@ Separated1 a x .++ y =
   Separated1 a (x <> y)
 
 infixr 5 .++
+
+-- |
+--
+-- >>> parse (separatedBy (char ',') digit) "test" ""
+-- Right []
+--
+-- >>> isLeft (parse (separatedBy (char ',') digit) "test" ",")
+-- True
+--
+-- >>> parse (separatedBy (char ',') digit) "test" ",1"
+-- Right [',','1']
+--
+-- >>> isLeft (parse (separatedBy (char ',') digit) "test" ",1,")
+-- True
+--
+-- >>> parse (separatedBy (char ',') digit) "test" ",1,2,3,4,5"
+-- Right [',','1',',','2',',','3',',','4',',','5']
+separatedBy ::
+  Alternative f =>
+  f a
+  -> f b
+  -> f (Separated a b)
+separatedBy a b =
+  Separated <$>
+    many
+      ((,) <$> a <*> b)
+
+-- |
+--
+-- >>> isLeft (parse (separatedBy1 (char ',') digit) "test" "")
+-- True
+--
+-- >>> parse (separatedBy1 (char ',') digit) "test" ","
+-- Right [',']
+--
+-- >>> isLeft (parse (separatedBy1 (char ',') digit) "test" ",1")
+-- True
+--
+-- >>> parse (separatedBy1 (char ',') digit) "test" ",1,"
+-- Right [',','1',',']
+--
+-- >>>  parse (separatedBy1 (char ',') digit) "test" ",1,2,3,4,5,"
+-- Right [',','1',',','2',',','3',',','4',',','5',',']
+separatedBy1 ::
+  Alternative f =>
+  f b
+  -> f a
+  -> f (Separated1 b a)
+separatedBy1 b a =
+  Separated1 <$> b <*> separatedBy a b
 
 showSeparated ::
  (Show a, Show s, Functor f) =>
