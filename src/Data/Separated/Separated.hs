@@ -30,7 +30,7 @@ import Data.Monoid as Monoid(mappend)
 import Data.Semigroup as Semigroup((<>))
 import Data.Separated.SeparatedCons(SeparatedCons((+:), SeparatedConsF, SeparatedConsG))
 import Data.String(String)
-import Papa hiding ((<.>))
+import Papa hiding ((<.>), empty, repeat)
 
 -- $setup
 -- >>> :set -XNoImplicitPrelude
