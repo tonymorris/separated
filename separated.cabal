@@ -27,12 +27,11 @@ library
 
   build-depends:
                     base < 5 && >= 3
-                    , lens >= 4.0
+                    , lens >= 4.0 && <5
                     , semigroups >= 0.9
                     , semigroupoids >= 4.0
                     , bifunctors >= 4.0
-                    , papa
-                    , parsec
+                    , papa >= 0.2 && <0.3
 
   ghc-options:
                     -Wall
